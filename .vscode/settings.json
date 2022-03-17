@@ -1,0 +1,14 @@
+{
+    "java.project.sourcePaths": [
+        "."
+    ],
+    "java.project.outputPath": "out",
+    "java.project.resourceFilters": [
+        ".idea",
+        ".vscode",
+        ".gitignore",
+        "AI_Project2.iml",
+        "project2.pdf",
+        "README.md"
+    ]
+}

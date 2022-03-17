@@ -22,7 +22,8 @@
             "name": "Launch Queens",
             "request": "launch",
             "mainClass": "Queens",
-            "projectName": "AI_Project2_89396f36"
+            "projectName": "AI_Project2_89396f36",
+            "args": "PrimitiveLogic 6"
         }
     ]
 }

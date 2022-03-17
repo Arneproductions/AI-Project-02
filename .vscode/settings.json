@@ -10,5 +10,9 @@
         "AI_Project2.iml",
         "project2.pdf",
         "README.md"
+    ],
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "dependencies/javabdd-1.0b2.jar"
     ]
 }

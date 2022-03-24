@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
@@ -58,8 +59,11 @@ public class ANTIQueenLogic implements IQueensLogic {
 
                 System.out.println(translatePosition(column, row));
                 BDD current = createHorizontalAndVerticalRules(column, row);
-
+                BDD currentDiagonal = createDiagonalsRules(column, row);
+                
+                temp.andWith(currentDiagonal);
                 temp.andWith(current);
+                
             }
         }
 
@@ -93,6 +97,15 @@ public class ANTIQueenLogic implements IQueensLogic {
         mainBDD.restrictWith(factory.ithVar(translatePosition(column, row)));
         board[row][column] = 1;
     }
+
+    private BDD createDiagonalsRules(int column, int row) {
+        BDD diagonalFalseRule = TRUE;
+
+        diagonalFalseRule = createRule(getVariablesFromQ1(column, row), diagonalFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
+        
+        return factory.ithVar(translatePosition(column, row)).impWith(diagonalFalseRule);
+    }
+
 
     /* UTIL FUNCTIONS */
 
@@ -134,8 +147,23 @@ public class ANTIQueenLogic implements IQueensLogic {
         return IntStream.range(0, size).filter(i -> i != row).map(i -> translatePosition(column, i));
     }
 
+    private IntStream getVariablesFromQ1(int row, int column){
+        //    return IntStream.range(0, size).map(i -> IntStream.range(0, size).filter(j -> i == column - 1 && j == row - 1).map(j -> translatePosition(i, j)));
+           var integerlist = new ArrayList<Integer>(); 
+           for (int i = column; i >= 0; i--) {
+            for (int j = row; j >= 0; j--) {
+                if(column -i == row -j) {
+                    integerlist.add(translatePosition(i,j));
+                }
+                }
+            }
+           return integerlist.stream().flatMapToInt(IntStream::of);
+        }
+
     private interface Accumulater<T, U> {
     
         T apply(T acc, U val);
     }
 }
+
+

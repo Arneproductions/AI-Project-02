@@ -8,7 +8,6 @@ public class ANTIQueenLogic implements IQueensLogic {
 
     private int[][] board;
     private BDD mainBDD;
-    private BDD[] variables;
     private BDD TRUE;
     private BDD FALSE;
 
@@ -40,23 +39,17 @@ public class ANTIQueenLogic implements IQueensLogic {
         for(int column = 0; column < board.length; column++)
             for (int row = 0; row < board[column].length; row++) 
                 if (board[column][row] == 0)
-                    board[column][row]  = evaluatePosition(column, row);
+                    board[column][row] = evaluatePosition(column, row);
     }
 
     private BDD initializeBDD(int size) {
 
         // Init variables
-        factory = JFactory.init(size*size, size);
+        factory = JFactory.init(2000000, 200000);
         TRUE = factory.one();
         FALSE = factory.zero();
-        variables = new BDD[size*size];
         factory.setVarNum(size*size);
         BDD temp = TRUE;
-        
-        // Create variables
-        // for (int i = 0; i < size; i++)
-        //     for (int j = 0; j < size; j++)  
-        //         variables[translatePosition(i, j)] = factory.ithVar(translatePosition(i, j));
                 
         
         for (int column = 0; column < size; column++) {
@@ -66,8 +59,7 @@ public class ANTIQueenLogic implements IQueensLogic {
                 System.out.println(translatePosition(column, row));
                 BDD current = createHorizontalAndVerticalRules(column, row);
 
-                temp = temp.apply(current, BDDFactory.and);
-                variables[translatePosition(column, row)] = current;
+                temp.andWith(current);
             }
         }
 
@@ -87,16 +79,14 @@ public class ANTIQueenLogic implements IQueensLogic {
         return 0;
     }
 
-    private BDD createHorizontalAndVerticalRules(int column, int row) {
-        BDD queenHasBeenPlaced = FALSE;
+    private BDD createHorizontalAndVerticalRules(int column, int row) {        
         BDD columnAndRowFalseRule = TRUE;
 
         columnAndRowFalseRule = createRule(getVariablesFromSameRow(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
         columnAndRowFalseRule = createRule(getVariablesFromSameColumn(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
         
-        queenHasBeenPlaced.orWith(factory.nithVar(translatePosition(column, row)));
-        queenHasBeenPlaced.orWith(columnAndRowFalseRule);
-        return queenHasBeenPlaced;
+        
+        return factory.ithVar(translatePosition(column, row)).impWith(columnAndRowFalseRule);
     }
 
     private void placeQueen(int row, int column) {
@@ -122,6 +112,7 @@ public class ANTIQueenLogic implements IQueensLogic {
         BDD tempBody = acc;
 
         for (int i : varIds.toArray()) {
+            System.out.println(i);
             tempBody = accumulater.apply(tempBody, i);
         }
 

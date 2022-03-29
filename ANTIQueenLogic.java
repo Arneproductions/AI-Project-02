@@ -25,6 +25,7 @@ public class ANTIQueenLogic implements IQueensLogic {
 
     @Override
     public int[][] getBoard() {
+        System.out.println("update board er kaldt");
         updateBoard();
         return board;
     }
@@ -57,15 +58,26 @@ public class ANTIQueenLogic implements IQueensLogic {
 
             for (int row = 0; row < size; row++) {
 
-                System.out.println(translatePosition(column, row));
+                // System.out.println(translatePosition(column, row));
                 BDD current = createHorizontalAndVerticalRules(column, row);
-                BDD currentDiagonal = createDiagonalsRules(column, row);
-                
-                temp.andWith(currentDiagonal);
                 temp.andWith(current);
                 
             }
         }
+
+        // for (int column = 0; column < size; column++) {
+
+        //     for (int row = 0; row < size; row++) {
+
+        //         // System.out.println(translatePosition(column, row));
+        //         BDD currentDiagonal = createDiagonalsRules(row, column);
+        //         temp.andWith(currentDiagonal);
+                
+        //     }
+        // }
+
+        BDD currentDiagonal = createDiagonalsRules(4, 3);
+        temp.andWith(currentDiagonal);
 
 
         return temp;
@@ -93,11 +105,6 @@ public class ANTIQueenLogic implements IQueensLogic {
         return factory.ithVar(translatePosition(column, row)).impWith(columnAndRowFalseRule);
     }
 
-    private void placeQueen(int row, int column) {
-        mainBDD.restrictWith(factory.ithVar(translatePosition(column, row)));
-        board[row][column] = 1;
-    }
-
     private BDD createDiagonalsRules(int column, int row) {
         BDD diagonalFalseRule = TRUE;
 
@@ -106,6 +113,12 @@ public class ANTIQueenLogic implements IQueensLogic {
         return factory.ithVar(translatePosition(column, row)).impWith(diagonalFalseRule);
     }
 
+    private void placeQueen(int row, int column) {
+        if (board[row][column] == 0){
+            mainBDD.restrictWith(factory.ithVar(translatePosition(column, row)));
+            board[row][column] = 1;
+        }
+    }
 
     /* UTIL FUNCTIONS */
 
@@ -125,7 +138,7 @@ public class ANTIQueenLogic implements IQueensLogic {
         BDD tempBody = acc;
 
         for (int i : varIds.toArray()) {
-            System.out.println(i);
+            //System.out.println(i);
             tempBody = accumulater.apply(tempBody, i);
         }
 
@@ -140,7 +153,9 @@ public class ANTIQueenLogic implements IQueensLogic {
     private IntStream getVariablesFromSameRow(int row, int column) {
 
         return IntStream.range(0, size).filter(i -> i != column).map(i -> translatePosition(i, row));
+    
     }
+
 
     private IntStream getVariablesFromSameColumn(int row, int column) {
 
@@ -152,11 +167,14 @@ public class ANTIQueenLogic implements IQueensLogic {
            var integerlist = new ArrayList<Integer>(); 
            for (int i = column; i >= 0; i--) {
             for (int j = row; j >= 0; j--) {
-                if(column -i == row -j) {
+                System.out.println("i: " + i + " j: " + j);
+                if(row -i == column -j) {
                     integerlist.add(translatePosition(i,j));
+                    System.out.println("translate: "+translatePosition(i,j));
                 }
                 }
             }
+            //kilde reference
            return integerlist.stream().flatMapToInt(IntStream::of);
         }
 

@@ -58,13 +58,24 @@ public class ANTIQueenLogic implements IQueensLogic {
 
                 System.out.println(translatePosition(column, row));
                 BDD current = createHorizontalAndVerticalRules(column, row);
-
+                if (column == 0){
+                    BDD eachRow = createEachRowRule(column,row);
+                    temp.andWith(eachRow);
+                }
                 temp.andWith(current);
             }
         }
 
 
         return temp;
+    }
+
+    private BDD createEachRowRule(int column, int row){
+        BDD eachRowRule = TRUE;
+        
+        eachRowRule = createRule(getVariablesFromSameRow(row, column), eachRowRule, (acc, val) -> acc != null ? acc.or(factory.ithVar(val)) : factory.ithVar(val));
+        
+        return eachRowRule;
     }
 
     private int evaluatePosition(int column, int row) {

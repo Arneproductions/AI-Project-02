@@ -24,8 +24,10 @@ public class BDDExamples {
 		
 		// Using the factory, we can produce BDDs corresponding to the i'th variable for i from 0 to nVars-1 
 		BDD x0 = fact.ithVar(0); // A BDD representing the 0'th variable. 
+		BDD nx0 = fact.nithVar(0);
 		// The factory can also produce BDDs corresponding to the negation of the i'th variable
 		BDD nx1 = fact.nithVar(1); // The representation of the negation of the 1'st variable
+		BDD x1 = fact.ithVar(1);
 		BDD x2 = fact.ithVar(2); 
 		// The negations of variables can also be made using the method 'not' (and the already produced "variable-BDDs"
 		BDD nx2 = x2.not();
@@ -52,13 +54,16 @@ public class BDDExamples {
 		// In order to restrict or quantify the expression to a given assignment,
 		// we give the assignment as a conjunction where positive variables
 		// indicate that the variable should be restricted to true, and vice versa.
-		BDD restriction_x2True_x0False = fact.ithVar(2).and(fact.nithVar(0)); //e.g. x2 should be True and x0 should be False
-		BDD restricted_b3 = b3.restrict(restriction_x2True_x0False); // Result of restricting b3 with the above restriction
-																     // Note: result is returned in new BDD (b3 is unchanged)
+		// BDD restriction_x2True_x0False = fact.ithVar(2).and(fact.nithVar(0).and(fact.nithVar(1))); //e.g. x2 should be True and x0 should be False
+		// BDD restricted_b3 = b3.restrict(restriction_x2True_x0False); // Result of restricting b3 with the above restriction
+		// 														     // Note: result is returned in new BDD (b3 is unchanged)
 		
-		System.out.println("The node-entry for restricted_b3: ");
-		fact.printTable(restricted_b3);
-		System.out.println("restricted_b3 is the same as b3?: " + restricted_b3.equals(b3) );
+		// System.out.println("The node-entry for restricted_b3: ");
+		// fact.printTable(restricted_b3);
+		// System.out.println("restricted_b3 is the same as b3?: " + restricted_b3.equals(b3) );
+
+		BDD test = x2.apply(x1.and(x0), BDDFactory.nand);
+		System.out.println("Finished");
 		
 		// Lastly notice, that there are version of many of the above mentioned methods (e.g. 'or')
 		// that ends with "With". The latter methods transforms/consumes the calling BDD 

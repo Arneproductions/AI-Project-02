@@ -1,6 +1,3 @@
-import java.util.ArrayList;
-import java.util.function.Function;
-import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -66,19 +63,43 @@ public class ANTIQueenLogic implements IQueensLogic {
                 BDD current = createHorizontalAndVerticalRules(column, row);
                 // BDD diagonalRule = createDiagonalsRules(column, row);
                 temp.andWith(current);
+
+                if(column==0){
+                    BDD eachRow = createEachRowRule(column,row);
+                    temp.andWith(eachRow);
+                }
             }
         }
 
         return temp;
     }
 
+    private BDD createEachRowRule(int column, int row){
+        BDD eachRowRule = FALSE;
+        
+        eachRowRule = createRule(IntStream.range(0, size).map(i -> translatePosition(i, row)), 
+                                eachRowRule, 
+                                (acc, val) -> acc != null ? acc.or(factory.ithVar(val)) : factory.ithVar(val));
+        
+        return eachRowRule;
+    }
+
     private int evaluatePosition(int column, int row) {
         BDD testBDD = mainBDD.restrict(factory.ithVar(translatePosition(column, row)));
 
         if(testBDD.isOne()) {
+            System.out.println("first check");
+            System.out.println("whole thing solved");
             return 1;
         } else if (testBDD.isZero()) {
+            System.out.println("second check");
             return -1;
+        }
+
+        BDD newTestBDD = mainBDD.restrict(factory.nithVar(translatePosition(column, row)));
+        if(newTestBDD.isZero()){
+            System.out.println("third check");
+            return 1;
         }
 
         return 0;
@@ -147,14 +168,13 @@ public class ANTIQueenLogic implements IQueensLogic {
     
     }
 
-
     private IntStream getVariablesFromSameColumn(int column, int row) {
 
         return IntStream.range(0, size).filter(i -> i != row).map(i -> translatePosition(column, i));
     }
 
     private IntStream getVariablesFromDiagonals(int column, int row) {
-        var currentPos = new Position(column, row);
+        int currentPos = translatePosition(column, row);
 
         // Generate top
         var leftTopCorner = IntStream.range(0, size).boxed().map(i -> new Position(column - i ,row - i));
@@ -168,8 +188,10 @@ public class ANTIQueenLogic implements IQueensLogic {
         
         var bottom = Stream.concat(leftBottomCorner, rightBottomCorner);
 
-        var result = Stream.concat(top, bottom).filter(pos -> pos.column > 0 && size > pos.column && pos.row > 0 && size > pos.row && pos != currentPos)
-                                                .mapToInt(pos -> translatePosition(pos.column, pos.row));
+        var result = Stream.concat(top, bottom)
+                                .filter(pos -> pos.getColumn() >= 0 && size > pos.getColumn() && pos.getRow() >= 0 && size > pos.getRow())
+                                .mapToInt(pos -> translatePosition(pos.getColumn(), pos.getRow()))
+                                .filter(i -> currentPos != i);
         // Concat bottom and top aaaaand remove varIds out of range
         return result;
     }

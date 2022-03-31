@@ -2,6 +2,10 @@ import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import javax.naming.spi.DirStateFactory.Result;
+import javax.sound.sampled.SourceDataLine;
 
 import net.sf.javabdd.*;
 
@@ -60,25 +64,10 @@ public class ANTIQueenLogic implements IQueensLogic {
 
                 // System.out.println(translatePosition(column, row));
                 BDD current = createHorizontalAndVerticalRules(column, row);
+                // BDD diagonalRule = createDiagonalsRules(column, row);
                 temp.andWith(current);
-                
             }
         }
-
-        // for (int column = 0; column < size; column++) {
-
-        //     for (int row = 0; row < size; row++) {
-
-        //         // System.out.println(translatePosition(column, row));
-        //         BDD currentDiagonal = createDiagonalsRules(row, column);
-        //         temp.andWith(currentDiagonal);
-                
-        //     }
-        // }
-
-        BDD currentDiagonal = createDiagonalsRules(4, 3);
-        temp.andWith(currentDiagonal);
-
 
         return temp;
     }
@@ -100,23 +89,24 @@ public class ANTIQueenLogic implements IQueensLogic {
 
         columnAndRowFalseRule = createRule(getVariablesFromSameRow(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
         columnAndRowFalseRule = createRule(getVariablesFromSameColumn(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
+        columnAndRowFalseRule = createRule(getVariablesFromDiagonals(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
         
         
         return factory.ithVar(translatePosition(column, row)).impWith(columnAndRowFalseRule);
     }
 
     private BDD createDiagonalsRules(int column, int row) {
-        BDD diagonalFalseRule = TRUE;
+         BDD diagonalFalseRule = TRUE;
 
-        diagonalFalseRule = createRule(getVariablesFromQ1(column, row), diagonalFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
+         diagonalFalseRule = createRule(getVariablesFromDiagonals(column, row), diagonalFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
         
-        return factory.ithVar(translatePosition(column, row)).impWith(diagonalFalseRule);
+         return factory.ithVar(translatePosition(column, row)).impWith(diagonalFalseRule);
     }
 
-    private void placeQueen(int row, int column) {
-        if (board[row][column] == 0){
+    private void placeQueen(int column, int row) {
+        if (board[column][row] == 0){
             mainBDD.restrictWith(factory.ithVar(translatePosition(column, row)));
-            board[row][column] = 1;
+            board[column][row] = 1;
         }
     }
 
@@ -130,14 +120,15 @@ public class ANTIQueenLogic implements IQueensLogic {
      */
     private int translatePosition(int column, int row) {
 
-        return (size * column) + row;
+        return (size * row) + column;
     }
 
     private BDD createRule(IntStream varIds, BDD acc, Accumulater<BDD, Integer> accumulater) {
         
         BDD tempBody = acc;
+        var ids = varIds.toArray();
 
-        for (int i : varIds.toArray()) {
+        for (int i : ids) {
             //System.out.println(i);
             tempBody = accumulater.apply(tempBody, i);
         }
@@ -150,37 +141,80 @@ public class ANTIQueenLogic implements IQueensLogic {
         return createRule(varIds, null, accumulater);
     }
 
-    private IntStream getVariablesFromSameRow(int row, int column) {
+    private IntStream getVariablesFromSameRow(int column, int row) {
 
         return IntStream.range(0, size).filter(i -> i != column).map(i -> translatePosition(i, row));
     
     }
 
 
-    private IntStream getVariablesFromSameColumn(int row, int column) {
+    private IntStream getVariablesFromSameColumn(int column, int row) {
 
         return IntStream.range(0, size).filter(i -> i != row).map(i -> translatePosition(column, i));
     }
 
-    private IntStream getVariablesFromQ1(int row, int column){
-        //    return IntStream.range(0, size).map(i -> IntStream.range(0, size).filter(j -> i == column - 1 && j == row - 1).map(j -> translatePosition(i, j)));
-           var integerlist = new ArrayList<Integer>(); 
-           for (int i = column; i >= 0; i--) {
-            for (int j = row; j >= 0; j--) {
-                System.out.println("i: " + i + " j: " + j);
-                if(row -i == column -j) {
-                    integerlist.add(translatePosition(i,j));
-                    System.out.println("translate: "+translatePosition(i,j));
-                }
-                }
-            }
-            //kilde reference
-           return integerlist.stream().flatMapToInt(IntStream::of);
-        }
+    private IntStream getVariablesFromDiagonals(int column, int row) {
+        var currentPos = new Position(column, row);
+
+        // Generate top
+        var leftTopCorner = IntStream.range(0, size).boxed().map(i -> new Position(column - i ,row - i));
+        var rightTopCorner = IntStream.range(0, size).boxed().map(i -> new Position(column + i ,row - i));
+
+        var top = Stream.concat(leftTopCorner, rightTopCorner);
+
+        // Generate bottom
+        var leftBottomCorner = IntStream.range(0, size).boxed().map(i -> new Position(column - i ,row + i));
+        var rightBottomCorner = IntStream.range(0, size).boxed().map(i -> new Position(column + i ,row + i));
+        
+        var bottom = Stream.concat(leftBottomCorner, rightBottomCorner);
+
+        var result = Stream.concat(top, bottom).filter(pos -> pos.column > 0 && size > pos.column && pos.row > 0 && size > pos.row && pos != currentPos)
+                                                .mapToInt(pos -> translatePosition(pos.column, pos.row));
+        // Concat bottom and top aaaaand remove varIds out of range
+        return result;
+    }
+
+    // private void createDiagonalsRules(int row, int column){
+    //     //    return IntStream.range(0, size).map(i -> IntStream.range(0, size).filter(j -> i == column - 1 && j == row - 1).map(j -> translatePosition(i, j)));
+    //        var integerlist = new ArrayList<Integer>(); 
+    //        BDD diagonalFalseRule = TRUE;
+
+    //         int counter = 1; 
+    //         for (int i = translatePosition(0, size-1); i <= 0; i = i - size) {
+    //             for (int j = 0; j < counter; j++) {
+    //                 integerlist.add(i+(j*size+1));
+    //             }
+
+    //             counter ++;
+    //             var listAsStream = integerlist.stream().flatMapToInt(IntStream::of);
+    //             diagonalFalseRule = createRule(listAsStream, diagonalFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
+    //             temp.andWith(factory.ithVar(translatePosition(column, row)).impWith(diagonalFalseRule));
+    //         }
+           
+    //     }
 
     private interface Accumulater<T, U> {
     
         T apply(T acc, U val);
+    }
+
+    private class Position {
+        private final int row;
+        private final int column;
+
+        public Position(int column, int row) {
+            this.row = row;
+            this.column = column;
+        }
+
+        public int getRow() {
+            return row;
+        }
+
+        public int getColumn() {
+            return column;
+        }
+        
     }
 }
 

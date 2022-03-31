@@ -23,7 +23,7 @@
             "request": "launch",
             "mainClass": "Queens",
             "projectName": "AI_Project2_89396f36",
-            "args": "ANTIQueenLogic 8"
+            "args": "ANTIQueenLogic 6"
         }
     ]
 }

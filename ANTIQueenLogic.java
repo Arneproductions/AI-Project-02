@@ -87,6 +87,11 @@ public class ANTIQueenLogic implements IQueensLogic {
             return -1;
         }
 
+        BDD newTestBDD = mainBDD.restrict(factory.nithVar(translatePosition(column, row)));
+        if(newTestBDD.isZero()){
+            return 1;
+        }
+
         return 0;
     }
 

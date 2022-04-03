@@ -3,7 +3,7 @@ import java.util.stream.Stream;
 
 import net.sf.javabdd.*;
 
-public class ANTIQueenLogic implements IQueensLogic {
+public class Group18Logic implements IQueensLogic {
 
     private int[][] board;
     private BDD mainBDD;
@@ -23,7 +23,7 @@ public class ANTIQueenLogic implements IQueensLogic {
 
     @Override
     public int[][] getBoard() {
-        System.out.println("update board er kaldt");
+        
         updateBoard();
         return board;
     }

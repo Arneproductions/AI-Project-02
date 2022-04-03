@@ -1,9 +1,6 @@
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import javax.naming.spi.DirStateFactory.Result;
-import javax.sound.sampled.SourceDataLine;
-
 import net.sf.javabdd.*;
 
 public class ANTIQueenLogic implements IQueensLogic {
@@ -34,10 +31,15 @@ public class ANTIQueenLogic implements IQueensLogic {
     @Override
     public void insertQueen(int column, int row) {
 
-        placeQueen(column, row);
-        System.out.println("Clicked");
+        Position position = new Position(column, row);
+        
+        placeQueen(position);
     }
 
+    /**
+     * Updates the board with placements of queens 
+     * and positions where a queen is not allowed to be placed
+     */
     private void updateBoard() {
         for(int column = 0; column < board.length; column++)
             for (int row = 0; row < board[column].length; row++) 
@@ -45,6 +47,11 @@ public class ANTIQueenLogic implements IQueensLogic {
                     board[column][row] = evaluatePosition(column, row);
     }
 
+    /**
+     * Creates the Binary Decision Diagram
+     * @param size The maximum number of cells in both x and y direction
+     * @return A binary decision diagram 
+     */
     private BDD initializeBDD(int size) {
 
         // Init variables
@@ -59,13 +66,15 @@ public class ANTIQueenLogic implements IQueensLogic {
 
             for (int row = 0; row < size; row++) {
 
-                // System.out.println(translatePosition(column, row));
-                BDD current = createHorizontalAndVerticalRules(column, row);
-                // BDD diagonalRule = createDiagonalsRules(column, row);
+                Position currentPosition = new Position(column, row);
+                
+                // Create the queen attack rules
+                BDD current = createQueenAttackingRules(currentPosition);
                 temp.andWith(current);
-
-                if(column==0){
-                    BDD eachRow = createEachRowRule(column,row);
+                
+                // Create "one queen on each row"-rule
+                if(column==0) {
+                    BDD eachRow = createOneQueenOnRowRule(row);
                     temp.andWith(eachRow);
                 }
             }
@@ -74,7 +83,39 @@ public class ANTIQueenLogic implements IQueensLogic {
         return temp;
     }
 
-    private BDD createEachRowRule(int column, int row){
+    /**
+     * Evaluates the position to see if there can be placed a queen or not.
+     * @param column The column number of the postion
+     * @param row The row number of the position
+     * @return 1 if the position needs to have a queen placed. -1 if a queen cannot be placed at that position. 0 if cannot be decided.
+     */
+    private int evaluatePosition(int column, int row) {
+        BDD testPlaceQueenBDD = mainBDD.restrict(factory.ithVar(translatePosition(column, row))); // Placing a queen on the position
+        BDD testNotPlacingQueenBDD = mainBDD.restrict(factory.nithVar(translatePosition(column, row))); // Not placing a queen on the position
+
+        if (testPlaceQueenBDD.isZero()) {
+
+            // It is not possible to place a queen on the position
+            return -1;
+        } else if(testNotPlacingQueenBDD.isZero()){
+
+            // There has to be placed a queen on the position
+            return 1;
+        }
+
+        return 0;
+    }
+
+    /************************************
+     ******** Rule Functions ************
+     ***********************************/
+
+    /**
+     * Creates a rule that there has to be one queen on the row
+     * @param row Number of the row
+     * @return Returns the Binary Decision Diagram that 
+     */
+    private BDD createOneQueenOnRowRule(int row){
         BDD eachRowRule = FALSE;
         
         eachRowRule = createRule(IntStream.range(0, size).map(i -> translatePosition(i, row)), 
@@ -84,59 +125,66 @@ public class ANTIQueenLogic implements IQueensLogic {
         return eachRowRule;
     }
 
-    private int evaluatePosition(int column, int row) {
-        BDD testBDD = mainBDD.restrict(factory.ithVar(translatePosition(column, row)));
-
-        if(testBDD.isOne()) {
-            System.out.println("first check");
-            System.out.println("whole thing solved");
-            return 1;
-        } else if (testBDD.isZero()) {
-            System.out.println("second check");
-            return -1;
-        }
-
-        BDD newTestBDD = mainBDD.restrict(factory.nithVar(translatePosition(column, row)));
-        if(newTestBDD.isZero()){
-            System.out.println("third check");
-            return 1;
-        }
-
-        return 0;
-    }
-
-    private BDD createHorizontalAndVerticalRules(int column, int row) {        
-        BDD columnAndRowFalseRule = TRUE;
-
-        columnAndRowFalseRule = createRule(getVariablesFromSameRow(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
-        columnAndRowFalseRule = createRule(getVariablesFromSameColumn(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
-        columnAndRowFalseRule = createRule(getVariablesFromDiagonals(column, row), columnAndRowFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
-        
-        
-        return factory.ithVar(translatePosition(column, row)).impWith(columnAndRowFalseRule);
-    }
-
-    private BDD createDiagonalsRules(int column, int row) {
-         BDD diagonalFalseRule = TRUE;
-
-         diagonalFalseRule = createRule(getVariablesFromDiagonals(column, row), diagonalFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
-        
-         return factory.ithVar(translatePosition(column, row)).impWith(diagonalFalseRule);
-    }
-
-    private void placeQueen(int column, int row) {
-        if (board[column][row] == 0){
-            mainBDD.restrictWith(factory.ithVar(translatePosition(column, row)));
-            board[column][row] = 1;
-        }
-    }
-
-    /* UTIL FUNCTIONS */
+    
 
     /**
-     * Translate the position to an interger representation
-     * @param column
-     * @param row
+     * Create the queen attacking rules for the specific position
+     * @param pos The position that the rule should be created for
+     * @return A binary decision diagram 
+     */
+    private BDD createQueenAttackingRules(Position pos) {        
+        BDD tempQueenAttackingRule = TRUE;
+
+        // Create rules for the row
+        tempQueenAttackingRule = createRule(getVariablesFromSameRow(pos.getColumn(), pos.getRow()), 
+                                            tempQueenAttackingRule, 
+                                            (acc, val) -> acc.and(factory.nithVar(val)));
+        // Create rules for the column
+        tempQueenAttackingRule = createRule(getVariablesFromSameColumn(pos.getColumn(), pos.getRow()), 
+                                            tempQueenAttackingRule, 
+                                            (acc, val) -> acc.and(factory.nithVar(val)));
+
+        // Create diagonal rules
+        tempQueenAttackingRule = createRule(getVariablesFromDiagonals(pos.getColumn(), pos.getRow()), 
+                                            tempQueenAttackingRule, 
+                                            (acc, val) -> acc.and(factory.nithVar(val)));
+        
+        
+        return factory.ithVar(translatePosition(pos)).impWith(tempQueenAttackingRule);
+    }
+
+    /**
+     * Places the queen on the board at the given position
+     * @param column number of the column
+     * @param row number of the row
+     */
+    private void placeQueen(Position pos) {
+
+        if (board[pos.getColumn()][pos.getRow()] == 0){
+            mainBDD.restrictWith(factory.ithVar(translatePosition(pos)));
+            board[pos.getColumn()][pos.getRow()] = 1;
+        }
+    }
+
+    /******************************* 
+    ******** UTIL FUNCTIONS ********
+    *******************************/
+
+    /**
+     * Translates the position to an interger representation
+     * @param column number of the column
+     * @param row number of the row
+     * @return Returns an integer value
+     */
+    private int translatePosition(Position pos) {
+
+        return translatePosition(pos.getColumn(), pos.getRow());
+    }
+
+    /**
+     * Translates the position to an interger representation
+     * @param column number of the column
+     * @param row number of the row
      * @return Returns an integer value
      */
     private int translatePosition(int column, int row) {
@@ -144,6 +192,13 @@ public class ANTIQueenLogic implements IQueensLogic {
         return (size * row) + column;
     }
 
+    /**
+     * Creates a rule for each of variable Ids in the int stream
+     * @param varIds A stream of variable ids
+     * @param acc The accumulated BDD
+     * @param accumulater The function to be applied on the BDD
+     * @return Returns the create rule as a BDD
+     */
     private BDD createRule(IntStream varIds, BDD acc, Accumulater<BDD, Integer> accumulater) {
         
         BDD tempBody = acc;
@@ -157,22 +212,39 @@ public class ANTIQueenLogic implements IQueensLogic {
         return tempBody;
     }
 
-    private BDD createRule(IntStream varIds, Accumulater<BDD, Integer> accumulater) {
-        
-        return createRule(varIds, null, accumulater);
-    }
-
+    /**
+     * Gets the variable ids from the same row, except it self
+     * @param column Number of the current column
+     * @param row Number of the current row
+     * @return Returns an intstream with variable ids from the same row except it self
+     */
     private IntStream getVariablesFromSameRow(int column, int row) {
 
-        return IntStream.range(0, size).filter(i -> i != column).map(i -> translatePosition(i, row));
+        return IntStream.range(0, size)
+                        .filter(i -> i != column)
+                        .map(i -> translatePosition(i, row));
     
     }
 
+    /**
+     * Gets the variable ids from the same column except it self
+     * @param column Number of the current column
+     * @param row Number fo the current row
+     * @return Returns an int stream with variable ids from the same column except it self
+     */
     private IntStream getVariablesFromSameColumn(int column, int row) {
 
-        return IntStream.range(0, size).filter(i -> i != row).map(i -> translatePosition(column, i));
+        return IntStream.range(0, size)
+                        .filter(i -> i != row)
+                        .map(i -> translatePosition(column, i));
     }
 
+    /**
+     * Gets the diagonal variable ids, except it self, based on the postion
+     * @param column Number of the current column 
+     * @param row Number of the current row
+     * @return Returns an int stream with variable ids, except it self
+     */
     private IntStream getVariablesFromDiagonals(int column, int row) {
         int currentPos = translatePosition(column, row);
 
@@ -188,38 +260,24 @@ public class ANTIQueenLogic implements IQueensLogic {
         
         var bottom = Stream.concat(leftBottomCorner, rightBottomCorner);
 
-        var result = Stream.concat(top, bottom)
+        // Concat bottom and top aaaaand remove varIds out of range
+        return Stream.concat(top, bottom)
                                 .filter(pos -> pos.getColumn() >= 0 && size > pos.getColumn() && pos.getRow() >= 0 && size > pos.getRow())
                                 .mapToInt(pos -> translatePosition(pos.getColumn(), pos.getRow()))
                                 .filter(i -> currentPos != i);
-        // Concat bottom and top aaaaand remove varIds out of range
-        return result;
     }
 
-    // private void createDiagonalsRules(int row, int column){
-    //     //    return IntStream.range(0, size).map(i -> IntStream.range(0, size).filter(j -> i == column - 1 && j == row - 1).map(j -> translatePosition(i, j)));
-    //        var integerlist = new ArrayList<Integer>(); 
-    //        BDD diagonalFalseRule = TRUE;
-
-    //         int counter = 1; 
-    //         for (int i = translatePosition(0, size-1); i <= 0; i = i - size) {
-    //             for (int j = 0; j < counter; j++) {
-    //                 integerlist.add(i+(j*size+1));
-    //             }
-
-    //             counter ++;
-    //             var listAsStream = integerlist.stream().flatMapToInt(IntStream::of);
-    //             diagonalFalseRule = createRule(listAsStream, diagonalFalseRule, (acc, val) -> acc != null ? acc.and(factory.nithVar(val)) : factory.nithVar(val));
-    //             temp.andWith(factory.ithVar(translatePosition(column, row)).impWith(diagonalFalseRule));
-    //         }
-           
-    //     }
-
+    /**
+     * Defines a function that takes a value as an input and an accumulater. It then returns the new accumulated value
+     */
     private interface Accumulater<T, U> {
     
         T apply(T acc, U val);
     }
 
+    /**
+     * Represents a postion with x, y coordinates
+     */
     private class Position {
         private final int row;
         private final int column;
